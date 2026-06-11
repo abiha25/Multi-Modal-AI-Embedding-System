@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+python-multipart
+chromadb
+google-genai
+openai-whisper
+moviepy==1.0.3
+Pillow
+transformers
+torch
+requests
+python-dotenv
+ffmpeg-python
