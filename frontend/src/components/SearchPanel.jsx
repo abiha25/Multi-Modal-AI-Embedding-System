@@ -7,6 +7,7 @@ export default function SearchPanel({ onBack }) {
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [recording, setRecording] = useState(false);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -24,6 +25,42 @@ export default function SearchPanel({ onBack }) {
       console.error(e);
     }
     setLoading(false);
+  };
+
+  const handleMic = async () => {
+    if (recording) return;
+    setRecording(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream);
+      const chunks = [];
+      recorder.ondataavailable = e => chunks.push(e.data);
+      recorder.onstop = async () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunks, { type: "audio/webm" });
+        const fd = new FormData();
+        fd.append("file", blob, "query.webm");
+        fd.append("n_results", 5);
+        setLoading(true);
+        setSearched(true);
+        setResults([]);
+        try {
+          const res = await fetch(`${API}/search/audio`, { method: "POST", body: fd });
+          const data = await res.json();
+          setQuery(data.query || "");
+          setResults(data.results || []);
+        } catch (e) {
+          console.error(e);
+        }
+        setLoading(false);
+        setRecording(false);
+      };
+      recorder.start();
+      setTimeout(() => recorder.stop(), 5000);
+    } catch (e) {
+      alert("Microphone access denied.");
+      setRecording(false);
+    }
   };
 
   const chips = [
@@ -59,6 +96,22 @@ export default function SearchPanel({ onBack }) {
             onKeyDown={e => e.key === "Enter" && handleSearch()}
           />
           <button
+            onClick={handleMic}
+            disabled={loading || recording}
+            title="Speak a 5-second query"
+            style={{
+              background: recording ? "#dc2626" : "#f5f5f5",
+              border: "none",
+              borderLeft: "1px solid #e8e8e8",
+              padding: "0 16px",
+              cursor: recording ? "not-allowed" : "pointer",
+              fontSize: "16px",
+              transition: "background 0.15s",
+            }}
+          >
+            {recording ? "⏺" : "🎙"}
+          </button>
+          <button
             className="search-go"
             onClick={handleSearch}
             disabled={loading}
@@ -66,6 +119,12 @@ export default function SearchPanel({ onBack }) {
             {loading ? "Searching…" : "Search"}
           </button>
         </div>
+
+        {recording && (
+          <p style={{ fontSize: "12px", color: "#dc2626", marginBottom: "12px" }}>
+            Recording… speak now (5 seconds)
+          </p>
+        )}
 
         <div className="suggestion-chips">
           {chips.map(c => (
@@ -103,7 +162,12 @@ export default function SearchPanel({ onBack }) {
                   <span className="result-score">{(r.score * 100).toFixed(1)}%</span>
                 </div>
                 <p className="result-preview">{r.preview}</p>
-                {r.captions && (
+                {(r.timestamp_start !== null && r.timestamp_start !== undefined) && (
+                <p className="result-captions">
+                ⏱ {r.timestamp_start}s → {r.timestamp_end}s
+                </p>
+                )}
+                {r.captions && !r.timestamp_start && (
                   <p className="result-captions">Frames: {r.captions.slice(0, 140)}…</p>
                 )}
               </div>
@@ -119,7 +183,7 @@ export default function SearchPanel({ onBack }) {
               </svg>
             </div>
             <p className="empty-title">Enter a query above</p>
-            <p className="empty-desc">Pick a suggestion or type your own to begin searching.</p>
+            <p className="empty-desc">Type a query, pick a suggestion, or tap the mic to speak.</p>
           </div>
         )}
       </div>
