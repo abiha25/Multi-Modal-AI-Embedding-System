@@ -1,37 +1,68 @@
 import { useState } from "react";
 import UploadPanel from "./components/UploadPanel";
 import SearchPanel from "./components/SearchPanel";
+import "./app.css";
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState("search");
+  const [page, setPage] = useState("home");
+
+  if (page === "search") return <SearchPanel onBack={() => setPage("home")} />;
+  if (page === "index") return <UploadPanel onBack={() => setPage("home")} />;
 
   return (
-    <div className="min-h-screen bg-gray-950 text-white font-sans">
-      <header className="border-b border-gray-800 px-8 py-4 flex items-center gap-3">
-        <div className="w-8 h-8 rounded-lg bg-indigo-500 flex items-center justify-center text-sm font-bold">M</div>
-        <h1 className="text-xl font-semibold tracking-tight">MultiModal Search</h1>
-        <span className="ml-2 text-xs bg-indigo-900 text-indigo-300 px-2 py-0.5 rounded-full">POC</span>
-      </header>
-
-      <div className="px-8 pt-6 flex gap-4 border-b border-gray-800">
-        {["search", "upload"].map(tab => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`pb-3 text-sm font-medium capitalize border-b-2 transition-colors ${
-              activeTab === tab
-                ? "border-indigo-400 text-indigo-400"
-                : "border-transparent text-gray-400 hover:text-white"
-            }`}
-          >
-            {tab === "search" ? "🔍 Semantic Search" : "📤 Index Content"}
-          </button>
-        ))}
+    <div className="home">
+      <div className="home-header">
+        <div className="home-logo">
+          <span className="logo-dot" />
+          <span className="logo-text">MultiModal Search</span>
+        </div>
+        <p className="home-tagline">
+          Index and retrieve across text, audio, and video — with one natural language query.
+        </p>
       </div>
 
-      <main className="px-8 py-8 max-w-4xl mx-auto">
-        {activeTab === "search" ? <SearchPanel /> : <UploadPanel />}
-      </main>
+      <div className="home-cards">
+        <button className="hcard" onClick={() => setPage("search")}>
+          <div className="hcard-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+            </svg>
+          </div>
+          <div className="hcard-body">
+            <h2 className="hcard-title">Retrieve</h2>
+            <p className="hcard-desc">Search across all indexed content using natural language. Find text, audio, and video by meaning — not keywords.</p>
+          </div>
+          <div className="hcard-arrow">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </div>
+        </button>
+
+        <button className="hcard" onClick={() => setPage("index")}>
+          <div className="hcard-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+          </div>
+          <div className="hcard-body">
+            <h2 className="hcard-title">Index</h2>
+            <p className="hcard-desc">Add text documents, audio recordings, and video files to the system. Each is processed and embedded for semantic search.</p>
+          </div>
+          <div className="hcard-arrow">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12h14M12 5l7 7-7 7"/>
+            </svg>
+          </div>
+        </button>
+      </div>
+
+      <div className="home-footer">
+        <span className="badge">Gemini Embeddings</span>
+        <span className="badge">Whisper STT</span>
+        <span className="badge">BLIP Captioning</span>
+        <span className="badge">ChromaDB</span>
+      </div>
     </div>
   );
 }
