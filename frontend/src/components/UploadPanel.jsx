@@ -2,31 +2,28 @@ import { useState } from "react";
 
 const API = "http://localhost:8000";
 
-export default function UploadPanel() {
-  const [status, setStatus] = useState("");
+export default function UploadPanel({ onBack }) {
   const [loading, setLoading] = useState(false);
   const [textContent, setTextContent] = useState("");
   const [textName, setTextName] = useState("");
+  const [audioFile, setAudioFile] = useState(null);
+  const [videoFile, setVideoFile] = useState(null);
+  const [statuses, setStatuses] = useState({ text: null, audio: null, video: null });
 
-  const upload = async (formData, endpoint) => {
+  const setStatus = (type, msg, kind) =>
+    setStatuses(s => ({ ...s, [type]: { msg, kind } }));
+
+  const upload = async (formData, endpoint, type) => {
     setLoading(true);
-    setStatus("Processing... this may take a moment ⏳");
+    setStatus(type, "Processing… this may take a moment", "wait");
     try {
       const res = await fetch(`${API}/${endpoint}`, { method: "POST", body: formData });
       const data = await res.json();
-      setStatus(`✅ Indexed! Modality: ${data.modality} | ID: ${data.id.slice(0, 8)}...`);
+      setStatus(type, `Indexed — ${data.modality} · ID ${data.id.slice(0, 8)}`, "ok");
     } catch (e) {
-      setStatus("❌ Error: " + e.message);
+      setStatus(type, "Error: " + e.message, "err");
     }
     setLoading(false);
-  };
-
-  const handleFile = (e, type) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const fd = new FormData();
-    fd.append("file", file);
-    upload(fd, `ingest/${type}`);
   };
 
   const handleText = () => {
@@ -34,75 +31,131 @@ export default function UploadPanel() {
     const fd = new FormData();
     fd.append("content", textContent);
     fd.append("filename", textName || "untitled.txt");
-    upload(fd, "ingest/text");
+    upload(fd, "ingest/text", "text");
+  };
+
+  const handleAudio = () => {
+    if (!audioFile) return;
+    const fd = new FormData();
+    fd.append("file", audioFile);
+    upload(fd, "ingest/audio", "audio");
+  };
+
+  const handleVideo = () => {
+    if (!videoFile) return;
+    const fd = new FormData();
+    fd.append("file", videoFile);
+    upload(fd, "ingest/video", "video");
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-gray-200">Index New Content</h2>
-
-      {/* Text */}
-      <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
-          <span>📝</span> Text Document
-        </div>
-        <input
-          className="w-full bg-gray-800 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-indigo-500"
-          placeholder="Document name (e.g. report.txt)"
-          value={textName}
-          onChange={e => setTextName(e.target.value)}
-        />
-        <textarea
-          className="w-full bg-gray-800 rounded-lg px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:ring-1 focus:ring-indigo-500 h-28 resize-none"
-          placeholder="Paste your text content here..."
-          value={textContent}
-          onChange={e => setTextContent(e.target.value)}
-        />
-        <button
-          onClick={handleText}
-          disabled={loading}
-          className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white text-sm px-4 py-2 rounded-lg transition-colors"
-        >
-          Index Text
+    <div className="page">
+      <div className="page-topbar">
+        <button className="back-btn" onClick={onBack}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M19 12H5M12 19l-7-7 7-7"/>
+          </svg>
+          Home
         </button>
+        <div className="page-divider" />
+        <span className="page-title">Index</span>
       </div>
 
-      {/* Audio */}
-      <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
-          <span>🎵</span> Audio File
-        </div>
-        <p className="text-xs text-gray-500">Supports .mp3, .wav, .m4a — will be transcribed with Whisper</p>
-        <input
-          type="file" accept="audio/*"
-          onChange={e => handleFile(e, "audio")}
-          className="text-sm text-gray-400 file:mr-3 file:bg-gray-700 file:text-white file:border-0 file:rounded-lg file:px-3 file:py-1.5 file:text-sm file:cursor-pointer"
-        />
-      </div>
+      <div className="page-content">
+        <h1 className="index-headline">Add content to the index</h1>
+        <p className="index-sub">Each file is processed and stored as a vector embedding for semantic retrieval.</p>
 
-      {/* Video */}
-      <div className="bg-gray-900 rounded-xl p-5 border border-gray-800 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-medium text-gray-300">
-          <span>🎬</span> Video File
+        {/* Text */}
+        <div className="ingest-block">
+          <div className="ingest-head">
+            <div className="ingest-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/>
+              </svg>
+            </div>
+            <span className="ingest-label">Text document</span>
+          </div>
+          <p className="ingest-note">Paste any text — articles, notes, transcripts, documentation.</p>
+          <input
+            className="field"
+            placeholder="Document name (e.g. report.txt)"
+            value={textName}
+            onChange={e => setTextName(e.target.value)}
+          />
+          <textarea
+            className="field"
+            placeholder="Paste content here…"
+            value={textContent}
+            onChange={e => setTextContent(e.target.value)}
+          />
+          <button className="primary-btn" onClick={handleText} disabled={loading || !textContent.trim()}>
+            Index text
+          </button>
+          {statuses.text && (
+            <div className={`status-msg ${statuses.text.kind}`}>{statuses.text.msg}</div>
+          )}
         </div>
-        <p className="text-xs text-gray-500">Supports .mp4, .mov — frames will be captioned + audio transcribed</p>
-        <input
-          type="file" accept="video/*"
-          onChange={e => handleFile(e, "video")}
-          className="text-sm text-gray-400 file:mr-3 file:bg-gray-700 file:text-white file:border-0 file:rounded-lg file:px-3 file:py-1.5 file:text-sm file:cursor-pointer"
-        />
-      </div>
 
-      {/* Status */}
-      {status && (
-        <div className={`text-sm px-4 py-3 rounded-lg ${
-          status.startsWith("✅") ? "bg-green-900/40 text-green-300 border border-green-800"
-          : status.startsWith("❌") ? "bg-red-900/40 text-red-300 border border-red-800"
-          : "bg-yellow-900/40 text-yellow-300 border border-yellow-800"
-        }`}>
-          {status}
+        {/* Audio */}
+        <div className="ingest-block">
+          <div className="ingest-head">
+            <div className="ingest-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>
+              </svg>
+            </div>
+            <span className="ingest-label">Audio file</span>
+          </div>
+          <p className="ingest-note">.mp3 · .wav · .m4a — transcribed locally via Whisper, no API needed.</p>
+          <label className={`file-drop ${audioFile ? "chosen" : ""}`}>
+            <input
+              type="file"
+              accept="audio/*"
+              style={{ display: "none" }}
+              onChange={e => setAudioFile(e.target.files[0])}
+            />
+            <span className="file-drop-text">
+              {audioFile ? audioFile.name : "Click to choose an audio file"}
+            </span>
+          </label>
+          <button className="primary-btn" onClick={handleAudio} disabled={loading || !audioFile}>
+            Index audio
+          </button>
+          {statuses.audio && (
+            <div className={`status-msg ${statuses.audio.kind}`}>{statuses.audio.msg}</div>
+          )}
         </div>
-      )}
+
+        {/* Video */}
+        <div className="ingest-block">
+          <div className="ingest-head">
+            <div className="ingest-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+              </svg>
+            </div>
+            <span className="ingest-label">Video file</span>
+          </div>
+          <p className="ingest-note">.mp4 · .mov — frames captioned via BLIP, audio transcribed via Whisper.</p>
+          <label className={`file-drop ${videoFile ? "chosen" : ""}`}>
+            <input
+              type="file"
+              accept="video/*"
+              style={{ display: "none" }}
+              onChange={e => setVideoFile(e.target.files[0])}
+            />
+            <span className="file-drop-text">
+              {videoFile ? videoFile.name : "Click to choose a video file"}
+            </span>
+          </label>
+          <button className="primary-btn" onClick={handleVideo} disabled={loading || !videoFile}>
+            Index video
+          </button>
+          {statuses.video && (
+            <div className={`status-msg ${statuses.video.kind}`}>{statuses.video.msg}</div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
