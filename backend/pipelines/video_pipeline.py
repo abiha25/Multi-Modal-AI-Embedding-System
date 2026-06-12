@@ -46,44 +46,62 @@ def extract_audio_from_video(video_path: str) -> str:
     return audio_path
 
 def ingest_video(file_path: str, filename: str) -> dict:
-    """Full video pipeline: frames → captions + audio → transcript → embed."""
-    
-    # Step 1: Frame captions
-    frames = extract_frames(file_path, interval_sec=5)
-    captions = caption_frames(frames)
-    visual_description = " | ".join(captions)
-    
-    # Step 2: Audio transcription
-    audio_path = extract_audio_from_video(file_path)
-    transcript = ""
-    if os.path.exists(audio_path):
+    """Video pipeline with per-segment timestamp indexing."""
+
+    # Step 1: Extract frames with timestamps
+    clip = VideoFileClip(file_path)
+    duration = int(clip.duration)
+    interval = 5
+
+    frame_data = []
+    for t in range(0, duration, interval):
+        frame = clip.get_frame(t)
+        img = Image.fromarray(frame)
+        inputs = blip_processor(img, return_tensors="pt")
+        with torch.no_grad():
+            output = blip_model.generate(**inputs, max_new_tokens=50)
+        caption = blip_processor.decode(output[0], skip_special_tokens=True)
+        frame_data.append({"t": t, "caption": caption})
+    clip.close()
+
+    # Step 2: Transcribe audio with segments
+    audio_path = file_path.replace(".mp4", "_audio.wav").replace(".mov", "_audio.wav")
+    clip2 = VideoFileClip(file_path)
+    seg_transcripts = []
+    if clip2.audio:
+        clip2.audio.write_audiofile(audio_path, verbose=False, logger=None)
         result = whisper_model.transcribe(audio_path)
-        transcript = result["text"].strip()
-    
-    # Step 3: Combine into rich text for embedding
-    combined_text = f"Visual content: {visual_description}. Audio: {transcript}"
-    
-    # Step 4: Embed
-    embedding = get_embedding(combined_text)
-    doc_id = str(uuid.uuid4())
-    
-    store_embedding(
-        doc_id=doc_id,
-        embedding=embedding,
-        text_content=combined_text,
-        metadata={
-            "modality": "video",
-            "filename": filename,
+        seg_transcripts = result.get("segments", [])
+    clip2.close()
+
+    # Step 3: Index each 5-second chunk with its timestamp
+    ids = []
+    for fd in frame_data:
+        t_start = fd["t"]
+        t_end = min(t_start + interval, duration)
+
+        # Find whisper segments overlapping this window
+        spoken = " ".join(
+            s["text"].strip() for s in seg_transcripts
+            if s["start"] < t_end and s["end"] > t_start
+        )
+
+        combined = f"Visual: {fd['caption']}."
+        if spoken:
+            combined += f" Audio: {spoken}"
+
+        embedding = get_embedding(combined)
+        doc_id = str(uuid.uuid4())
+        store_embedding(doc_id, embedding, combined, {
+            "modality": "video", "filename": filename,
             "file_path": file_path,
-            "captions": visual_description,
-            "transcript": transcript,
-            "preview": combined_text[:300]
-        }
-    )
-    return {
-        "id": doc_id,
-        "status": "indexed",
-        "modality": "video",
-        "captions": visual_description,
-        "transcript": transcript
-    }
+            "captions": fd["caption"],
+            "transcript": spoken,
+            "timestamp_start": t_start,
+            "timestamp_end": t_end,
+            "preview": f"[{t_start}s → {t_end}s] {combined[:250]}"
+        })
+        ids.append(doc_id)
+
+    return {"id": ids[0] if ids else "", "status": "indexed",
+            "modality": "video", "segments": len(ids)}
