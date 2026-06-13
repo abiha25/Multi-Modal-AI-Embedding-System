@@ -1,4 +1,4 @@
-# Mosaic — Multi-Modal Search
+# Mosaic — Multi-Modal-AI-Embedding-System
 
 A proof-of-concept system for indexing and semantically searching across **text, audio, and video** using a unified natural language query interface.
 
