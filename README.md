@@ -1,4 +1,4 @@
-# Multi-Modal AI Embedding System
+# Mosaic — Multi-Modal Search
 
 A proof-of-concept system for indexing and semantically searching across **text, audio, and video** using a unified natural language query interface.
 
@@ -27,8 +27,10 @@ FastAPI Backend
       ↓
 ┌─────────────────────────────────────────┐
 │           Processing Pipelines          │
-│  Text  → Gemini Embeddings              │
-│  Audio → Whisper (local) → Gemini       │
+│  Text  → Sliding-window chunks          │
+│          → Gemini Embeddings            │
+│  Audio → Whisper (local) → segments     │
+│          → Gemini Embeddings            │
 │  Video → FFmpeg frames                  │
 │          → BLIP captions (HuggingFace)  │
 │          → Whisper transcript           │
@@ -128,7 +130,12 @@ Full API docs available at [http://localhost:8000/docs](http://localhost:8000/do
 ## Project Structure
 
 ```
-multimodal-search/
+Multi-Modal-AI-Embedding-System/
+├── .env
+├── .gitignore
+├── env.example
+├── README.md
+│
 ├── backend/
 │   ├── main.py                  # FastAPI app
 │   ├── embedder.py              # Gemini embedding wrapper
@@ -138,22 +145,33 @@ multimodal-search/
 │       ├── text_pipeline.py
 │       ├── audio_pipeline.py
 │       └── video_pipeline.py
-├── frontend/
-│   └── src/
-│       ├── App.jsx
-│       └── components/
-│           ├── UploadPanel.jsx
-│           └── SearchPanel.jsx
-├── .env.example
-└── README.md
+│
+└── frontend/
+    ├── index.html
+    ├── package.json
+    ├── vite.config.js
+    ├── tailwind.config.js
+    ├── postcss.config.js
+    ├── eslint.config.js
+    └── src/
+        ├── main.jsx
+        ├── app.css
+        ├── index.css
+        ├── App.jsx
+        ├── assets/
+        │   └── hero.png
+        └── components/
+            ├── SearchPanel.jsx
+            ├── UploadPanel.jsx
+            └── ResultCard.jsx
 ```
 
 ---
 
 ## Supported File Formats
 
-| Modality | Formats |
-|----------|---------|
-| Text | Any text content (pasted directly) |
-| Audio | `.mp3`, `.wav`, `.m4a` |
-| Video | `.mp4`, `.mov` |
+| Modality | Formats | Indexing strategy |
+|----------|---------|-------------------|
+| Text | Any text content (pasted directly) | Sliding-window chunks (400 words, 80-word overlap) |
+| Audio | `.mp3`, `.wav`, `.m4a` | Per-segment via Whisper |
+| Video | `.mp4`, `.mov` | Per 5-second chunk (BLIP caption + Whisper transcript fused) |
